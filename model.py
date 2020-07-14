@@ -3,28 +3,25 @@ from tensorflow import keras
 from helpers import *
 
 
+class Model:
 
-
-class Model: 
-
-
-	def __init__(self, tokenizer, vocab_sz, max_length):
+	def __init__(self, my_tokenizer, vocab_sz, max_length):
 
 		'''
-			part of the model that uses the image features
+		part of the model that uses the image features
 		'''
 		image_inputs = keras.layers.Input(shape=(4096,))
-		droupout_image = keras.layers.Dropout(0.5)(image_inputs)
-		layer1 = keras.layers.Dense(256, activation="relu")(droupout_image)
+		dropout_image = keras.layers.Dropout(0.5)(image_inputs)
+		layer1 = keras.layers.Dense(256, activation="relu")(dropout_image)
 
 		''' 
-			part of the model that uses the text features
+		part of the model that uses the text features
 		'''
 
 		text_inputs = keras.layers.Input(shape=(max_length,))
 		embeddings = keras.layers.Embedding(vocab_sz, 256, mask_zero=True)(text_inputs)
-		droupout_text = keras.layers.Dropout(0.5)(embeddings)
-		layer2 = keras.layers.LSTM(256)(droupout_text)
+		dropout_text = keras.layers.Dropout(0.5)(embeddings)
+		layer2 = keras.layers.LSTM(256)(dropout_text)
 
 		'''
 			Add the outputs of the image layer and the caption layer into
@@ -50,17 +47,15 @@ class Model:
 		'''
 
 		self.model.compile(loss="categorical-cross_entropy", optimizer="adam")
-		
-		self.max_caption_length = max_caption_length
-		self.tokenizer = tokenizer
 
+		self.max_caption_length = max_caption_length
+		self.tokenizer = my_tokenizer
 
 	def train(self, captions, image_features):
 		steps = len(image_features)
 		generator = data_generator(captions, image_features, self.tokenizer, self.max_caption_length)
-		self.model.fit_generator(generator, epochs=num_epochs, steps_per_epoch=len(steps), verbose = 1)
+		self.model.fit_generator(generator, epochs=num_epochs, steps_per_epoch=len(steps), verbose=1)
 		self.model.save("model.h5")
-
 
 	def predict_caption(self, image, start_token="START", stop_token="STOP"):
 
@@ -71,9 +66,9 @@ class Model:
 			y_hat = self.model.predict([image, sequence], verbose=0)
 			y_hat = np.argmax(y_hat, tokenizer)
 			word = word2id(y_hat, tokenizer)
-			if word is None: 
+			if word is None:
 				break
-			prediction += " "+word
+			prediction += " " + word
 			if word == stop_token:
 				break
 		return prediction
@@ -88,8 +83,8 @@ class Model:
 			y_true = [x.split() for x in captions_list]
 			actual.append(y_true)
 			predicted.append(y_hat)
-			
-			if i%100 == 0:
+
+			if i % 100 == 0:
 				print(str(i) + " / " + str(tot))
 			i += 1
 
@@ -97,7 +92,5 @@ class Model:
 		BLEU_2 = corpus_bleu(actual, predicted, weights=(0.5, 0.5, 0, 0))
 		BLEU_3 = corpus_bleu(actual, predicted, weights=(0.3, 0.3, 0.3, 0))
 		BLEU_4 = corpus_bleu(actual, predicted, weights=(0.25, 0.25, 0.25, 0.25))
-	
+
 		return BLEU_1, BLEU_2, BLEU_3, BLEU_4
-
-

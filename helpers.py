@@ -1,10 +1,8 @@
 import os
 from os import listdir
 import numpy as np
-import tensorflow as tf
 from tensorflow import keras
 import string
-from PIL import Image
 import json
 
 params = json.load("params.json")
@@ -36,32 +34,33 @@ def make_image_features(image_directory="Flickr8k_Dataset"):
 
     return features
 
+
 def get_image_features(image_directory="Flickr8k_text"):
-	with open(image_directory+'/Flickr_8k.trainImages.txt', 'r') as f:
-		trainImages = f.read()
-	with open(image_directory+'/Flickr_8k.testImages.txt', 'r') as f:
-		testImages = f.read()
+    with open(image_directory + '/Flickr_8k.trainImages.txt', 'r') as f:
+        trainImages = f.read()
+    with open(image_directory + '/Flickr_8k.testImages.txt', 'r') as f:
+        testImages = f.read()
 
-	train_img_names = []
-	for line in trainImages.split('\n'):
-		train_img_names.append(line.split('.')[0])
-	train_img_names = set(train_img_names)
+    train_img_names = []
+    for line in trainImages.split('\n'):
+        train_img_names.append(line.split('.')[0])
+    train_img_names = set(train_img_names)
 
-	test_img_names = []
-	for line in testImages.split('\n'):
-		test_img_names.append(line.split('.')[0])
-	test_img_names = set(test_img_names)
+    test_img_names = []
+    for line in testImages.split('\n'):
+        test_img_names.append(line.split('.')[0])
+    test_img_names = set(test_img_names)
 
-	features = make_image_features()
+    features = make_image_features()
 
-	train_img_features = {k: features[k] for k in train_img_names if not(k == '')}
-	test_img_features = {k: features[k] for k in test_img_names if not(k == '')}
+    train_img_features = {k: features[k] for k in train_img_names if not (k == '')}
+    test_img_features = {k: features[k] for k in test_img_names if not (k == '')}
 
-	return train_img_features, test_img_features
+    return train_img_features, test_img_features
 
 
 def make_captions_and_vocab(path_to_text="Flickr8k_text/Flickr8k.token.txt", start_token="START", stop_token="STOP"):
-    if (os.path.exists("captions.json") and os.path.exists("vocabulary.json")):
+    if os.path.exists("captions.json") and os.path.exists("vocabulary.json"):
 
         with open("captions.json", "r") as f:
             my_data = f.read()
@@ -105,44 +104,62 @@ def make_captions_and_vocab(path_to_text="Flickr8k_text/Flickr8k.token.txt", sta
 
     return captions, vocab
 
+
 def get_vocab():
-	_ , vocab = make_captions_and_vocab()
-	return vocab
+    _, vocab = make_captions_and_vocab()
+    return vocab
 
-def get_captions():
-	captions, _ = make_captions_and_vocab()
-	train_captions = {k: captions[k] for k in train_img_names if not(k == '')}
-	test_captions = {k: captions[k] for k in test_img_names if not(k == '')}
 
-	return train_captions, test_captions
+def get_captions(image_directory="Flickr8k_text"):
+    with open(image_directory + '/Flickr_8k.trainImages.txt', 'r') as f:
+        trainImages = f.read()
+    with open(image_directory + '/Flickr_8k.testImages.txt', 'r') as f:
+        testImages = f.read()
+
+    train_img_names = []
+    for line in trainImages.split('\n'):
+        train_img_names.append(line.split('.')[0])
+    train_img_names = set(train_img_names)
+
+    test_img_names = []
+    for line in testImages.split('\n'):
+        test_img_names.append(line.split('.')[0])
+    test_img_names = set(test_img_names)
+    captions, _ = make_captions_and_vocab()
+
+    train_captions = {k: captions[k] for k in train_img_names if not (k == '')}
+    test_captions = {k: captions[k] for k in test_img_names if not (k == '')}
+
+    return train_captions, test_captions
+
 
 def get_max_length_captions():
-	train_captions, _ = get_captions()
-	captions_list = [caption for captions in train_captions.values() for caption in captions]
-	max_caption_length = max(len(s.split()) for s in captions_list)
-	return max_caption_length
+    train_captions, _ = get_captions()
+    captions_list = [caption for captions in train_captions.values() for caption in captions]
+    max_caption_length = max(len(s.split()) for s in captions_list)
+    return max_caption_length
 
 
 def get_tokenizer():
-	if (os.path.exists("tokenizer.json")):
-		with open("tokenizer.json") as f:
-			my_data = f.read()
+    if os.path.exists("tokenizer.json"):
+        with open("tokenizer.json") as f:
+            my_data = f.read()
             tokenizer = json.load(my_data)
+            return tokenizer
     else:
-		train_captions, _ = get_captions()
-		captions_list = [caption for captions in train_captions.values() for caption in captions]
-		tokenizer = keras.preprocessing.text.Tokenizer()
-		tokenizer.fit_on_texts(captions_list)
-		json.dump(tokenizer, "tokenizer.json")
-
-	return tokenizer
+        train_captions, _ = get_captions()
+        captions_list = [caption for captions in train_captions.values() for caption in captions]
+        tokenizer = keras.preprocessing.text.Tokenizer()
+        tokenizer.fit_on_texts(captions_list)
+        json.dump(tokenizer, "tokenizer.json")
+        return tokenizer
 
 
 def get_vocab_size():
-	tokenizer = get_tokenizer()
-	vocab_size = len(tokenizer.word_index) + 1
-	return vocab_size
-	
+    tokenizer = get_tokenizer()
+    vocab_size = len(tokenizer.word_index) + 1
+    return vocab_size
+
 
 def make_batch(tokenizer, max_caption_length, captions_list, image):
     input1 = []
@@ -152,27 +169,26 @@ def make_batch(tokenizer, max_caption_length, captions_list, image):
         sequence = tokenizer.text_to_sequence([caption])
         for i in range(1, len(sequence)):
             in_, out_ = sequence[:i], sequence[i]
-            in_ = keras.preprocessing.sequence.pad_sequences([in_],maxlen=max_caption_length)[0]
-            out_ = keras.utils.to_categorical([out_], num_classes=vocab_size)[0]
+            in_ = keras.preprocessing.sequence.pad_sequences([in_], maxlen=max_caption_length)[0]
+            out_ = keras.utils.to_categorical([out_], num_classes=get_vocab_size())[0]
             input1.append(image)
             input2.append(in_)
             output.append(out_)
     return np.array(input1), np.array(input2), np.array(output)
 
+
 def generate_data(captions, images, tokenizer, max_caption_length):
     while True:
         for image_id, captions_list in captions.items():
             image = images[image_id][0]
-            encoder_input, decoder_input, decoder_output = make_batch(tokenizer, max_caption_length, captions_list, image)
-      
+            encoder_input, decoder_input, decoder_output = make_batch(tokenizer, max_caption_length, captions_list,
+                                                                      image)
+
             yield [[encoder_input, decoder_input], decoder_output]
 
+
 def word2id(num, tokenizer):
-	for word, i in tokenizer.word_index.items():
-		if i == num:
-			return word
-	return None
-
-
-
-
+    for word, i in tokenizer.word_index.items():
+        if i == num:
+            return word
+    return None
